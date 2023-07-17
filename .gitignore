@@ -1,0 +1,6 @@
+build
+make/GnuCTreeParserTokenTypes.txt
+make/STDCTokenTypes.txt
+build*/
+build-temp
+*.log

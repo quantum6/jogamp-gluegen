@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+    This is an example of how to add custom compiler/linker 
+    arguments for a crosscompiler.
+
+    You can use such files with setting the property 'gluegen-cpptasks.file', ie:
+
+        -Dgluegen-cpptasks.file=`pwd`/lib/gluegen-cpptasks-linux-32bit.xml
+
+    In case you want to compile for 32bit on a 64bit machine,
+    you might also need to set the 'os.arch' to 'x86'.
+    Example: gluegen/make/make.gluegen.all.linux-x86.sh
+      -->
+
+<project name="GlueGen-cpptasks-android-armv6" basedir="." >
+
+<!-- Set OS and ARCH for crosscompilation compiler configuration -->
+<target name="gluegen.cpptasks.detect.os.custom">
+    <property name="gluegen.cpptasks.detected.os"     value="true" /> 
+    <property name="isUnix"                           value="true" /> 
+    <property name="isAndroid"                        value="true" /> 
+    <property name="isAndroidARMv6"                   value="true" /> 
+    <property name="jvmDataModel.arg"                 value="-Djnlp.no.jvm.data.model.set=true" /> 
+    <property name="isCrosscompilation"               value="true" />
+    <property name="android.abi"                      value="${env.ANDROID_ABI}" /> <!-- armeabi-v7a -->
+    <property name="isAbiEabiGnuArmel"                value="true" />
+    <echo message="gluegen.cpptasks.detect.os.custom: GLUEGEN_CPPTASKS_FILE 'gluegen-cpptasks-android-armv6' done"/>
+</target>
+
+<import file="${gluegen.root.abs-path}/make/gluegen-cpptasks-base.xml" optional="false" />
+
+<target name="gluegen.cpptasks.configure.compiler" depends="setup.java.home.dir,declare.linux.android">
+    <echo message="Custom forced compiler Android NDK, linker.cfg.android" />
+    <compiler id="compiler.cfg.android" name="clang">
+      <!-- compilerarg value="-isystem"/> LLVM's C++ STL 
+      <compilerarg value="${env.ANDROID_TOOLCHAIN_SYSROOT1_INC_STL}" / -->
+      <compilerarg value="-isystem"/>
+      <compilerarg value="${env.ANDROID_TOOLCHAIN_SYSROOT1_INC}" />
+      <compilerarg value="-isystem"/>
+      <compilerarg value="${env.ANDROID_TOOLCHAIN_SYSROOT1_INC_ARCH}" />
+
+      <compilerarg value="-v" /> 
+
+      <compilerarg value="-fpic" /> 
+
+      <!-- from sdk cmake start -->
+      <compilerarg value="-fdata-sections" />
+      <compilerarg value="-ffunction-sections" />
+      <compilerarg value="-funwind-tables" />
+      <compilerarg value="-fstack-protector-strong" />
+      <compilerarg value="-no-canonical-prefixes" />
+      <compilerarg value="-nostdinc++" />
+      <!-- from sdk cmake end -->
+
+      <compilerarg value="-Wa,--noexecstack" /> 
+
+      <compilerarg value="-target" />
+      <compilerarg value="${env.ANDROID_LLVM_TRIPLE}" /> <!-- armv7-none-linux-androideabi -->
+      <compilerarg value="-mfpu=neon" /> <!-- with NEON by default since NDK r21 -->
+      <!-- compilerarg value="-march=armv6" />
+      <compilerarg value="-mfloat-abi=softfp" />
+      <compilerarg value="-marm" / -->
+
+      <!-- Generic ARM Flags -->
+      <compilerarg value="-fno-strict-aliasing"/> <!-- be safe -->
+
+      <compilerarg value="-O2"                  unless="c.compiler.use-debug" /> 
+      <!-- compilerarg value="-g"                   unless="c.compiler.use-debug" /-->
+      <compilerarg value="-fomit-frame-pointer" unless="c.compiler.use-debug"/> 
+      <!-- compilerarg value="-funswitch-loops"     unless="c.compiler.use-debug"/ not supported --> 
+      <!-- compilerarg value="-finline-limit=300"   unless="c.compiler.use-debug"/ not supported --> 
+
+      <compilerarg value="-O0"                     if="c.compiler.use-debug" />
+      <compilerarg value="-g"                      if="c.compiler.use-debug" />
+      <compilerarg value="-fno-omit-frame-pointer" if="c.compiler.use-debug" /> 
+
+      <!-- includepath path="${env.ANDROID_TOOLCHAIN_SYSROOT1_INC}" / -->
+      <defineset>
+        <define name="__unix__" />
+        <define name="__ARM_ARCH_5__" />
+        <define name="__ARM_ARCH_5T__" />
+        <define name="__ARM_ARCH_5E__" />
+        <define name="__ARM_ARCH_5TE__" />
+        <define name="HAVE_NEON" />
+        <define name="ANDROID" />
+        <define name="_DEBUG"   if="c.compiler.use-debug"/>        
+        <define name="DEBUG"    if="c.compiler.use-debug"/>        
+        <define name="NDEBUG"   unless="c.compiler.use-debug"/>        
+      </defineset>
+    </compiler>
+
+    <linker id="linker.cfg.android" name="clang">
+      <linkerarg value="--sysroot=${env.ANDROID_TOOLCHAIN_SYSROOT0}" /> <!-- libs in std FS layout, but no include files -->
+      <linkerarg value="-L${env.ANDROID_TOOLCHAIN_SYSROOT1_LIB1}" />
+      <linkerarg value="-Wl,-rpath-link=${env.ANDROID_TOOLCHAIN_SYSROOT1_LIB1}" />
+      <linkerarg value="-L${env.ANDROID_TOOLCHAIN_SYSROOT1_LIB2}" />
+      
+      <linkerarg value="-v" /> 
+
+      <linkerarg value="-fpic" /> 
+
+      <!-- from sdk cmake start -->
+      <linkerarg value="-Wl,--build-id" /> 
+      <linkerarg value="-Wl,--no-warn-shared-textrel" /> 
+      <linkerarg value="-Wl,--fatal-warnings" />
+      <linkerarg value="-nostdlib" />
+      <linkerarg value="-nostdlib++" />
+      <!-- from sdk cmake end -->
+
+      <linkerarg value="-fno-use-linker-plugin" /> 
+
+      <linkerarg value="-target" />
+      <linkerarg value="${env.ANDROID_LLVM_TRIPLE}" /> <!-- armv7-none-linux-androideabi -->
+      <linkerarg value="-mfpu=neon" /> <!-- with NEON by default since NDK r21 -->
+      <!--
+      <linkerarg value="-march=armv6" />
+      <linkerarg value="-mfloat-abi=softfp" />
+      <linkerarg value="-marm" />  -->
+
+      <linkerarg value="-Bdynamic" />
+      <linkerarg value="-Wl,-dynamic-linker,/system/bin/linker" />
+      <linkerarg value="-Wl,-z,nocopyreloc" />
+
+      <!-- linkerarg value="- -no-undefined" / -->
+
+      <!-- libset libs="c,m,dl,log" / -->
+      <libset libs="c,m,dl" />
+    </linker>
+
+</target>
+
+<target name="gluegen.cpptasks.declare.compiler" depends="setup.java.home.dir">
+  <echo message="Custom forced Linux.x86 cross compile android" />
+  <property name="compiler.cfg.id.base"          value="compiler.cfg.android" /> 
+  <property name="linker.cfg.id.base"            value="linker.cfg.android" /> 
+  <property name="java.includes.dir.platform"    value="${java.includes.dir}/x11" />
+  <available property="java.lib.dir.platform"    value="${java.home.dir}/jre/lib/i386" 
+                                                 file="${java.home.dir}/jre/lib/i386/libjava.so"/>
+  <available property="java.lib.dir.platform"    value="${java.home.dir}/lib/i386"     
+                                                 file="${java.home.dir}/lib/i386/libjava.so"/>
+  <property name="java.lib.dir.platform"         value="${java.home.dir}/lib"/> <!-- new default -->
+</target>
+
+<target name="declare.linux.android">
+  <echo message="android.${env.ANDROID_ABI}" />
+  <property name="compiler.cfg.id"               value="compiler.cfg.android" />
+  <property name="linker.cfg.id"                 value="linker.cfg.android" />
+</target>
+
+</project>
+
+
